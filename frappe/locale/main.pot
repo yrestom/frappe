@@ -11566,7 +11566,7 @@ msgstr ""
 
 #. Description of the 'Content' (Text Editor) field in DocType 'Note'
 #: frappe/desk/doctype/note/note.json
-msgid "Help: To link to another record in the system, use \"/app/note/[Note Name]\" as the Link URL. (don't use \"http://\")"
+msgid "Help: To link to another record in the system, use \"/admin/note/[Note Name]\" as the Link URL. (don't use \"http://\")"
 msgstr ""
 
 #. Label of a Int field in DocType 'Help Article'
@@ -21525,7 +21525,7 @@ msgstr ""
 
 #. Description of the 'Home Page' (Data) field in DocType 'Role'
 #: frappe/core/doctype/role/role.json
-msgid "Route: Example \"/app\""
+msgid "Route: Example \"/admin\""
 msgstr ""
 
 #: frappe/model/base_document.py:749 frappe/model/base_document.py:790
@@ -26317,7 +26317,7 @@ msgstr ""
 #. Description of the 'Enable Google indexing' (Check) field in DocType
 #. 'Website Settings'
 #: frappe/website/doctype/website_settings/website_settings.json
-msgid "To use Google Indexing, enable <a href=\"/app/google-settings\">Google Settings</a>."
+msgid "To use Google Indexing, enable <a href=\"/admin/google-settings\">Google Settings</a>."
 msgstr ""
 
 #. Description of the 'Slack Channel' (Link) field in DocType 'Notification'
@@ -29074,7 +29074,7 @@ msgstr ""
 msgid "You are not permitted to access this page without login."
 msgstr ""
 
-#: frappe/www/app.py:26
+#: frappe/www/admin.py:26
 msgid "You are not permitted to access this page."
 msgstr ""
 

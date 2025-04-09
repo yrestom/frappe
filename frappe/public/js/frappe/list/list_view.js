@@ -1029,7 +1029,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			return this.settings.get_form_link(doc);
 		}
 
-		return `/app/${encodeURIComponent(
+		return `/admin/${encodeURIComponent(
 			frappe.router.slug(frappe.router.doctype_layout || this.doctype)
 		)}/${encodeURIComponent(cstr(doc.name))}`;
 	}

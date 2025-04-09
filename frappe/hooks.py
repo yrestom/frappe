@@ -54,11 +54,11 @@ website_route_rules = [
 	{"from_route": "/kb/<category>", "to_route": "Help Article"},
 	{"from_route": "/newsletters", "to_route": "Newsletter"},
 	{"from_route": "/profile", "to_route": "me"},
-	{"from_route": "/app/<path:app_path>", "to_route": "app"},
+	{"from_route": "/admin/<path:app_path>", "to_route": "admin"},
 ]
 
 website_redirects = [
-	{"source": r"/desk(.*)", "target": r"/app\1"},
+	{"source": r"/desk(.*)", "target": r"/admin\1"},
 	{
 		"source": "/.well-known/openid-configuration",
 		"target": "/api/method/frappe.integrations.oauth2.openid_configuration",
@@ -460,7 +460,7 @@ standard_navbar_items = [
 	{
 		"item_label": "My Profile",
 		"item_type": "Route",
-		"route": "/app/user-profile",
+		"route": "/admin/user-profile",
 		"is_standard": 1,
 	},
 	{
@@ -513,7 +513,7 @@ standard_navbar_items = [
 	{
 		"item_label": "Log out",
 		"item_type": "Action",
-		"action": "frappe.app.logout()",
+		"action": "frappe.admin.logout()",
 		"is_standard": 1,
 	},
 ]

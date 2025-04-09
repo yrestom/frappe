@@ -177,7 +177,6 @@ def authorize_access(g_calendar: str, reauthorize: bool = False):
 
 	frappe.local.response["type"] = "redirect"
 	frappe.local.response["location"] = google_calendar.get_url()
-
 	frappe.msgprint(_("Google Calendar has been configured."), indicator="green")
 
 
