@@ -10,7 +10,7 @@ be used to build database driven apps.
 
 Read the documentation: https://frappeframework.com/docs
 """
-import copy
+
 import faulthandler
 import functools
 import gc
@@ -51,7 +51,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.54.1"
+__version__ = "15.63.0"
 __title__ = "Frappe Framework"
 
 # This if block is never executed when running the code. It is only used for
@@ -477,7 +477,7 @@ def _strip_html_tags(message):
 def msgprint(
 	msg: str,
 	title: str | None = None,
-	raise_exception: bool | type[Exception] = False,
+	raise_exception: bool | type[Exception] | Exception = False,
 	as_table: bool = False,
 	as_list: bool = False,
 	indicator: Literal["blue", "green", "orange", "red", "yellow"] | None = None,
@@ -512,6 +512,9 @@ def msgprint(
 		if raise_exception:
 			if inspect.isclass(raise_exception) and issubclass(raise_exception, Exception):
 				exc = raise_exception(msg)
+			elif isinstance(raise_exception, Exception):
+				exc = raise_exception
+				exc.args = (msg,)
 			else:
 				exc = ValidationError(msg)
 			if out.__frappe_exc_id:
@@ -583,7 +586,7 @@ def clear_last_message():
 
 def throw(
 	msg: str,
-	exc: type[Exception] = ValidationError,
+	exc: type[Exception] | Exception = ValidationError,
 	title: str | None = None,
 	is_minimizable: bool = False,
 	wide: bool = False,
@@ -1016,6 +1019,7 @@ def has_permission(
 	*,
 	parent_doctype=None,
 	debug=False,
+	ignore_share_permissions=False,
 ):
 	"""
 	Returns True if the user has permission `ptype` for given `doctype` or `doc`
@@ -1040,9 +1044,13 @@ def has_permission(
 		raise_exception=throw,
 		parent_doctype=parent_doctype,
 		debug=debug,
+		ignore_share_permissions=ignore_share_permissions,
 	)
 
 	if throw and not out:
+		if doc:
+			frappe.permissions.check_doctype_permission(doctype, ptype)
+
 		document_label = f"{_(doctype)} {doc if isinstance(doc, str) else doc.name}" if doc else _(doctype)
 		frappe.flags.error_message = _("No permission for {0}").format(document_label)
 		raise frappe.PermissionError
@@ -1288,13 +1296,7 @@ def get_doc(*args, **kwargs):
 	"""
 	import frappe.model.document
 
-	doc = frappe.model.document.get_doc(*args, **kwargs)
-
-	# Replace cache if stale one exists
-	if not kwargs.get("for_update") and (key := can_cache_doc(args)) and cache.exists(key):
-		_set_document_in_cache(key, doc)
-
-	return doc
+	return frappe.model.document.get_doc(*args, **kwargs)
 
 
 def get_last_doc(doctype, filters=None, order_by="creation desc", *, for_update=False):
@@ -1303,7 +1305,7 @@ def get_last_doc(doctype, filters=None, order_by="creation desc", *, for_update=
 	if d:
 		return get_doc(doctype, d[0], for_update=for_update)
 	else:
-		raise DoesNotExistError
+		raise DoesNotExistError(doctype=doctype)
 
 
 def get_single(doctype):
@@ -1691,14 +1693,22 @@ def get_file_json(path):
 		return json.load(f)
 
 
-def read_file(path, raise_not_found=False):
-	"""Open a file and return its content as Unicode."""
+def read_file(path, raise_not_found=False, as_base64=False):
+	"""Open a file and return its content as Unicode or Base64 string."""
 	if isinstance(path, str):
 		path = path.encode("utf-8")
 
 	if os.path.exists(path):
-		with open(path) as f:
-			return as_unicode(f.read())
+		if as_base64:
+			import base64
+
+			with open(path, "rb") as f:
+				content = f.read()
+				return base64.b64encode(content).decode("utf-8")
+		else:
+			with open(path) as f:
+				content = f.read()
+				return as_unicode(content)
 	elif raise_not_found:
 		raise OSError(f"{path} Not Found")
 	else:
@@ -1726,6 +1736,9 @@ def call(fn: str | Callable, *args, **kwargs):
 	return fn(*args, **newargs)
 
 
+_cached_inspect_signature = functools.lru_cache(inspect.signature)
+
+
 def get_newargs(fn: Callable, kwargs: dict[str, Any]) -> dict[str, Any]:
 	"""Remove any kwargs that are not supported by the function.
 
@@ -1741,7 +1754,7 @@ def get_newargs(fn: Callable, kwargs: dict[str, Any]) -> dict[str, Any]:
 	# Ref: https://docs.python.org/3/library/inspect.html#inspect.Parameter.kind
 	varkw_exist = False
 
-	signature = inspect.signature(fn)
+	signature = _cached_inspect_signature(fn)
 	fnargs = list(signature.parameters)
 
 	for param_name, parameter in signature.parameters.items():
@@ -2096,52 +2109,6 @@ def format(*args, **kwargs):
 	return frappe.utils.formatters.format_value(*args, **kwargs)
 
 
-def get_print(
-	doctype=None,
-	name=None,
-	print_format=None,
-	style=None,
-	as_pdf=False,
-	doc=None,
-	output=None,
-	no_letterhead=0,
-	password=None,
-	pdf_options=None,
-	letterhead=None,
-):
-	"""Get Print Format for given document.
-
-	:param doctype: DocType of document.
-	:param name: Name of document.
-	:param print_format: Print Format name. Default 'Standard',
-	:param style: Print Format style.
-	:param as_pdf: Return as PDF. Default False.
-	:param password: Password to encrypt the pdf with. Default None"""
-	from frappe.utils.pdf import get_pdf
-	from frappe.website.serve import get_response_without_exception_handling
-
-	original_form_dict = copy.deepcopy(local.form_dict)
-	try:
-		local.form_dict.doctype = doctype
-		local.form_dict.name = name
-		local.form_dict.format = print_format
-		local.form_dict.style = style
-		local.form_dict.doc = doc
-		local.form_dict.no_letterhead = no_letterhead
-		local.form_dict.letterhead = letterhead
-
-		pdf_options = pdf_options or {}
-		if password:
-			pdf_options["password"] = password
-
-		response = get_response_without_exception_handling("printview", 200)
-		html = str(response.data, "utf-8")
-	finally:
-		local.form_dict = original_form_dict
-
-	return get_pdf(html, options=pdf_options, output=output) if as_pdf else html
-
-
 def attach_print(
 	doctype,
 	name,
@@ -2344,15 +2311,16 @@ def get_website_settings(key):
 	return local.website_settings.get(key)
 
 
-def get_system_settings(key):
-	if not hasattr(local, "system_settings"):
+def get_system_settings(key: str):
+	"""Return the value associated with the given `key` from System Settings DocType."""
+	if not (system_settings := getattr(local, "system_settings", None)):
 		try:
-			local.system_settings = get_cached_doc("System Settings")
+			local.system_settings = system_settings = get_cached_doc("System Settings")
 		except DoesNotExistError:  # possible during new install
 			clear_last_message()
 			return
 
-	return local.system_settings.get(key)
+	return system_settings.get(key)
 
 
 def get_active_domains():
@@ -2495,7 +2463,14 @@ def _register_fault_handler():
 		faulthandler.register(signal.SIGUSR1, file=sys.__stderr__)
 
 
+def override_whitelisted_method(original_method: str) -> str:
+	"""Return the last override or the original whitelisted method."""
+	overrides = get_hooks("override_whitelisted_methods", {}).get(original_method, [])
+	return overrides[-1] if overrides else original_method
+
+
 from frappe.utils.error import log_error
+from frappe.utils.print_utils import get_print
 
 if _tune_gc:
 	# generational GC gets triggered after certain allocs (g0) which is 700 by default.
