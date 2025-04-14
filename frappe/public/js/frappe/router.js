@@ -64,7 +64,7 @@ $("body").on("click", "a", function (e) {
 	}
 
 	if (frappe.router.is_app_route(target_element.pathname)) {
-		// target has "/app, this is a v2 style route.
+		// target has "/admin, this is a v2 style route.
 		if (target_element.search) {
 			frappe.route_options = {};
 			let params = new URLSearchParams(target_element.search);
@@ -112,11 +112,11 @@ frappe.router = {
 
 	is_app_route(path) {
 		if (!path) return;
-		// desk paths must begin with /app or doctype route
+		// desk paths must begin with /admin for backward compatibility
 		if (path.substr(0, 1) === "/") path = path.substr(1);
 		path = path.split("/");
 		if (path[0]) {
-			return path[0] === "app";
+			return path[0] === "admin"
 		}
 	},
 
@@ -140,11 +140,11 @@ frappe.router = {
 		// translate it so the objects are well defined
 		// and render the page as required
 
-		if (!frappe.app) return;
+		if (!frappe.admin) return;
 
 		let sub_path = this.get_sub_path();
 		if (frappe.boot.setup_complete) {
-			!frappe.re_route["setup-wizard"] && (frappe.re_route["setup-wizard"] = "app");
+			!frappe.re_route["setup-wizard"] && (frappe.re_route["setup-wizard"] = "admin");
 		} else if (!sub_path.startsWith("setup-wizard")) {
 			frappe.re_route["setup-wizard"] && delete frappe.re_route["setup-wizard"];
 			frappe.set_route(["setup-wizard"]);
@@ -168,14 +168,14 @@ frappe.router = {
 	},
 
 	async convert_to_standard_route(route) {
-		// /app/settings = ["Workspaces", "Settings"]
-		// /app/private/settings = ["Workspaces", "private", "Settings"]
-		// /app/user = ["List", "User"]
-		// /app/user/view/report = ["List", "User", "Report"]
-		// /app/user/view/tree = ["Tree", "User"]
-		// /app/user/user-001 = ["Form", "User", "user-001"]
-		// /app/user/user-001 = ["Form", "User", "user-001"]
-		// /app/event/view/calendar/default = ["List", "Event", "Calendar", "Default"]
+		// /admin/settings = ["Workspaces", "Settings"]
+		// /admin/private/settings = ["Workspaces", "private", "Settings"]
+		// /admin/user = ["List", "User"]
+		// /admin/user/view/report = ["List", "User", "Report"]
+		// /admin/user/view/tree = ["Tree", "User"]
+		// /admin/user/user-001 = ["Form", "User", "user-001"]
+		// /admin/event/view/calendar/default = ["List", "Event", "Calendar", "Default"]
+
 
 		if (frappe.workspaces[route[0]]) {
 			// public workspace
@@ -464,7 +464,7 @@ frappe.router = {
 		}).join("/");
 
 		if (path_string) {
-			return "/app/" + path_string;
+			return "/admin/" + path_string;
 		}
 
 		// Resolution order
@@ -483,13 +483,13 @@ frappe.router = {
 
 		if (workspace) {
 			return (
-				"/app/" +
+				"/admin/" +
 				(workspace.public ? "" : "private/") +
 				frappe.router.slug(workspace.title)
 			);
 		}
 
-		return "/app";
+		return "/admin";
 	},
 
 	push_state(url) {
@@ -509,7 +509,7 @@ frappe.router = {
 		// supports both v1 and v2 routing
 		if (!route) {
 			route = window.location.pathname;
-			if (route.includes("app#")) {
+			if (route.includes("admin#")) {
 				// to support v1
 				route = window.location.hash;
 			}
@@ -519,9 +519,10 @@ frappe.router = {
 	},
 
 	strip_prefix(route) {
-		if (route.substr(0, 1) == "/") route = route.substr(1); // for /app/sub
-		if (route == "app") route = route.substr(4); // for app
-		if (route.startsWith("app/")) route = route.substr(4); // for desk/sub
+		if (route.substr(0, 1) == "/") route = route.substr(1); // for /admin/sub
+		if (route == "admin") route = route.substr(6); // for admin
+		if (route.startsWith("admin/")) route = route.substr(6); // for desk/sub
+		if (route.startsWith("admin/")) route = route.substr(6); // for desk/sub
 		if (route.substr(0, 1) == "/") route = route.substr(1);
 		if (route.substr(0, 1) == "#") route = route.substr(1);
 		if (route.substr(0, 1) == "!") route = route.substr(1);
